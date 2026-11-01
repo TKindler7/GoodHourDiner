@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-01 — Movement while browsing
+
+- Added subtle scroll-linked movement inside menu food images with enough image overscan to keep their frames filled; names, descriptions, and prices remain steady during scrolling.
+- Added one-time, row-staggered card entrances, including newly selected categories. Previously seen dishes stay visible when revisited, and keyboard focus reveals a card immediately.
+- Added a restrained approach zoom and straightening motion to the hero photo and large meal artwork, complementing the existing food arrangement sequence.
+- Reduced movement on narrow screens, disabled it for reduced motion, stopped work in hidden tabs, and cleaned up removed cards and listeners. No scroll interception or idle animation loop.
+- Added lifecycle coverage for first reveal, return scrolling, category replacement, keyboard focus, reduced motion, and cleanup. All 36 tests and the production build pass.
+
 ## 2026-10-30 — Move the view during assembly
 
 - Separated camera easing from ingredient assembly so dragging, pinching, wheel zoom, keyboard controls, and reset no longer finish the food animation early.

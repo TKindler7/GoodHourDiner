@@ -71,7 +71,7 @@ export function replaceMenu(grid, render) {
     const remove = () => { old.remove(); if (menuExit === old) menuExit = null; };
     if (exit) exit.finished.then(remove, remove); else remove();
   }
-  [...grid.children].forEach((card, index) => animateUI(card,
+  if (!document.documentElement.classList.contains("browse-motion-enabled")) [...grid.children].forEach((card, index) => animateUI(card,
     [{ opacity: 0, transform: "translateY(22px) scale(.985)" }, { opacity: 1, transform: "none" }],
     { duration: 430, delay: Math.min(index, 5) * 38, fill: "backwards" }));
 }

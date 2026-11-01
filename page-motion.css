@@ -88,3 +88,29 @@ html.page-motion-enabled .meal-art.page-motion-in-view .meal-orbit {
     opacity: 1 !important;
   }
 }
+
+/* Menu browsing: only imagery moves continuously; labels and prices stay put. */
+html.browse-motion-enabled [data-browse-card] .food-image-button img {
+  translate: 0 var(--browse-image-y, 0px);
+  scale: 1.08;
+}
+html.browse-motion-enabled [data-browse-pending] {
+  opacity: 0;
+  transform: translateY(24px);
+}
+html.browse-motion-enabled [data-browse-pending]:focus-within {
+  opacity: 1;
+  transform: none;
+}
+html.browse-motion-enabled [data-browse-focus] {
+  scale: var(--browse-focus-scale, 1);
+  rotate: var(--browse-focus-turn, 0deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-browse-card] .food-image-button img, [data-browse-focus] {
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+  }
+  [data-browse-pending] { opacity: 1 !important; transform: none !important; }
+}

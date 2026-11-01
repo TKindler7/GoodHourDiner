@@ -3,6 +3,7 @@ import { STORAGE_KEY, COMBO_DISCOUNT, SPECIAL_DISCOUNT, loadState, saveState, cr
 import { createFoodScene } from "./food-scene.js";
 import { specialStatus } from "./special.js";
 import { setupPageMotion } from "./page-motion.js";
+import { setupBrowseMotion } from "./browse-motion.js";
 import { animateUI, animateAmount, animateCartArrival, replaceMenu, moveCategoryIndicator, stopMotionWithin } from "./ui-motion.js";
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
@@ -596,5 +597,6 @@ setInterval(updateSpecial, 30000);
 setupReveals();
 
 setupPageMotion();
+setupBrowseMotion();
 if ("ResizeObserver" in window) new ResizeObserver(() => moveCategoryIndicator($("#category-bar"))).observe($("#category-bar"));
 document.fonts?.ready.then(() => moveCategoryIndicator($("#category-bar")));
