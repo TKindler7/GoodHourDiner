@@ -31,7 +31,7 @@ test("the first ingredient entrance survives control-layout resize and slow firs
   };
   const globals = {
     __foodSceneBoundary: renderBoundary,
-    document: { baseURI: "https://test.invalid/" }, window: { devicePixelRatio: 1 },
+    document: { baseURI: "https://test.invalid/", addEventListener() {}, removeEventListener() {} }, window: { devicePixelRatio: 1 },
     fetch: async () => ({ ok: true, json: async () => loadFoodLibrary() }),
     matchMedia: () => media, performance: { now: () => now },
     requestAnimationFrame: callback => { frames.set(++nextFrame, callback); return nextFrame; },
@@ -123,6 +123,48 @@ test("the first ingredient entrance survives control-layout resize and slow firs
     scene.zoom(.2);
     scene.dispose(); scene = null;
     assert.equal(frames.size, 0, "closing must cancel the remaining entrance");
+
+    const toast = ITEMS.find(item => item.id === "cinnamon-french-toast");
+    scene = await createFoodScene(container, { item: toast, options: { portion: "three", toppings: ["syrup", "whipped-cream", "blueberry"] } });
+    const foodLayers = () => layers().filter(layer => layer.userData.restPosition);
+    const liquidLayers = () => foodLayers().filter(layer => layer.userData.motion === "pour");
+    assert.equal(liquidLayers().length, 3, "each slice has syrup but all pour together");
+    const solidCount = foodLayers().length - liquidLayers().length;
+    const startPour = 120000 + solidCount * 460;
+    tick(120000);
+    assert.ok(liquidLayers().every(layer => !layer.visible));
+    tick(startPour + 300);
+    assert.ok(liquidLayers().every(layer => layer.visible && layer.userData.pourProgress > .2 && layer.userData.pourProgress < .4));
+    assert.ok(liquidLayers().every(layer => layer.position.equals(layer.userData.restPosition)), "liquid stays on its receiving surface");
+    const progress = liquidLayers()[0].userData.pourProgress;
+    scene.rotate(.3); scene.zoom(.2);
+    assert.equal(liquidLayers()[0].userData.pourProgress, progress, "view changes cannot finish a pour");
+    tick(startPour + 600);
+    assert.ok(liquidLayers()[0].userData.pourProgress > progress);
+    assert.ok(layers().some(layer => layer.name.endsWith("-pour-stream") && layer.visible), "active pour has a visible stream");
+    tick(startPour + 1050);
+    assert.equal(frames.size, 0);
+    assert.ok(liquidLayers().every(layer => layer.userData.pourProgress === 1));
+    assert.ok(layers().filter(layer => layer.name.endsWith("-pour-stream")).every(layer => !layer.visible), "finished liquids have no hovering streams");
+    scene.assemble(); tick(140000); tick(140000 + solidCount * 460 + 100);
+    await scene.update(toast, { portion: "two", toppings: [] });
+    assert.equal(liquidLayers().length, 0, "removal during a pour releases all sauce layers");
+    assert.ok(!layers().some(layer => layer.name.endsWith("-pour-stream")));
+    scene.dispose(); scene = null;
+    assert.equal(frames.size, 0);
+
+    const maple = ITEMS.find(item => item.id === "maple-bacon");
+    scene = await createFoodScene(container, { item: maple });
+    const mapleLayers = foodLayers();
+    const glazeIndex = mapleLayers.findIndex(layer => layer.name === "maple-glaze");
+    tick(160000); tick(160000 + glazeIndex * 460 + 400);
+    assert.ok(mapleLayers[glazeIndex].userData.pourProgress > 0 && mapleLayers[glazeIndex].userData.pourProgress < 1);
+    assert.ok(mapleLayers.slice(glazeIndex + 1).every(layer => !layer.visible), "internal glaze pours before cheese and bun cover it");
+    tick(160000 + glazeIndex * 460 + 1050);
+    assert.equal(mapleLayers[glazeIndex].userData.pourProgress, 1);
+    assert.equal(mapleLayers[glazeIndex + 1].visible, true, "solid assembly resumes after internal pour");
+    scene.dispose(); scene = null;
+    assert.equal(frames.size, 0);
 
     media.matches = true;
     scene = await createFoodScene(container, { item: ITEMS[0] });

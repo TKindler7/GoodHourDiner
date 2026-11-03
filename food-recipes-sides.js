@@ -107,7 +107,8 @@ const authoredOffsets = {
     0.003456
   ]
 };
-const part = (id, asset, position = [0,0,0], scale = 1, rotation = [0,0,0]) => ({id, asset: `sides-${asset}`, position, scale, rotation});
+const pourAssets = new Set(['cheese', 'cheese-large', 'cheese-chili', 'cheese-chili-large']);
+const part = (id, asset, position = [0,0,0], scale = 1, rotation = [0,0,0]) => ({id, asset: `sides-${asset}`, position, scale, rotation, ...(pourAssets.has(asset) ? { motion: 'pour' } : asset === 'crumbs' ? { motion: 'scatter' } : {})});
 const placed = (id, asset, y = 0) => part(id, asset, authoredOffsets[asset].map((v,i) => v + (i === 1 ? y : 0)));
 const has = (options, topping) => (options.toppings || []).includes(topping);
 const resize = (parts, factor) => parts.map(p => ({...p, position:p.position.map(v => v*factor), scale:Array.isArray(p.scale) ? p.scale.map(v=>v*factor) : p.scale*factor}));

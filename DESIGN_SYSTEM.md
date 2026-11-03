@@ -49,3 +49,10 @@ Menu selection uses a moving pill and a short crossfade into staggered cards. Ca
 The 3D builder keeps departing ingredients for a 300 ms lift/fade before disposal, settles retained layers, and eases camera changes. Rapid toggles reverse cleanly; pointer gestures take over immediately. The fictional kitchen has distinct cooking and plating cues, then the existing ready reveal. Receipt paper arrives over 700 ms, and its money-not-spent amount counts to the saved total once. Historical receipts display their final amount immediately.
 
 Reduced motion disables spatial effects and interpolation while preserving every action and final value. Changing the preference mid-animation settles the current state. Hidden tabs pause page work and cooking steam; closed 3D scenes release their resources. The local HIG `motion.md` sections “Best practices” and “Providing feedback,” and `feedback.md` “Best practices,” guide this treatment.
+
+
+## November 3 feedback revision
+
+Selected French-toast cream and berries belong on each slice. A whole pancake stack keeps one top garnish. Liquids reveal progressively on their actual surface beneath a thin moving stream; grouped finishing pours last about 1.05 seconds. The internal maple glaze pours before the burger closes. Camera movement remains independent.
+
+Good Hour Points reuse the existing surface, text, action-blue, system type, and focus treatments. The compact balance and labeled meter live in Your visits and the cart; receipts state earned/spent points. Ten points per completed fictional order and 100 points toward one dessert base price are explicit, with extras itemized. The display has no perpetual animation and never hides the money-not-spent reflection. Status appears in context, following local HIG feedback.md Best practices and motion.md Providing feedback.

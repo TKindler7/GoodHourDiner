@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-03 — Feedback, topping accuracy, and rewards
+
+- Distributed selected French-toast cream and berries over every slice, corrected slice support heights, and added the Maple Bacon Burger’s missing maple glaze.
+- Added progressive liquid pours for syrup, chocolate/fudge, and melted cheese; retained solid drops, camera control during assembly, grouped finishing pours, and reduced-motion settling. Internal maple glaze pours before the burger closes.
+- Added Good Hour Points: 10 per saved fictional order, 100 for one dessert base price, persisted order-backed balances, receipt/history/cart displays, and durable checkout with duplicate/stale-state protection.
+- All 57 automated tests, production build, and whitespace checks pass, including the stale-tab ledger regression.
+- Added an item/option audit for all 23 dishes and 141 choices, 298 targeted topping-toggle checks, and 69 offline default/minimal/loaded renders. Browser visual checks remain blocked by the saved local-origin permission after the user-requested retry.
+
+## 2026-11-03 — Simplify the hero heading
+
+- Removed “All day. All yours.” above the homepage headline following the annotated design feedback.
+
 ## 2026-11-01 — Movement while browsing
 
 - Added subtle scroll-linked movement inside menu food images with enough image overscan to keep their frames filled; names, descriptions, and prices remain steady during scrolling.

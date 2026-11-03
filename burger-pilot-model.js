@@ -7,8 +7,8 @@ export const PILOT_INGREDIENTS = Object.freeze([
 ]);
 
 // Asset keys stay independent from order choices: the second patty reuses one asset.
-export function burgerPilotLayers(value) {
-  const options = normalizeOptions(PILOT_ITEM_ID, value);
+export function burgerPilotLayers(value, itemId = PILOT_ITEM_ID) {
+  const options = normalizeOptions(itemId, value);
   const layers = [{ id: "bun-bottom", asset: "bun-bottom" }];
   if (options.sauce !== "none") layers.push({ id: "sauce", asset: `sauce-${options.sauce}` });
   for (const key of ["lettuce", "tomato"]) {
@@ -16,6 +16,9 @@ export function burgerPilotLayers(value) {
   }
   layers.push({ id: "patty", asset: "patty" });
   if (options.toppings.includes("extra-patty")) layers.push({ id: "extra-patty", asset: "patty" });
+  // The named maple burger has a fixed thin glaze on its griddled patty.
+  // This is part of the recipe, independent from the optional house/smoky sauce.
+  if (itemId === 'maple-bacon') layers.push({ id: 'maple-glaze', asset: 'savory-syrup', motion: 'pour', pourStage: 'inline' });
   if (options.cheese !== "none") layers.push({ id: "cheese", asset: options.cheese });
   for (const key of ["pickle", "onion", "bacon"]) {
     if (options.toppings.includes(key)) layers.push({ id: key, asset: key });

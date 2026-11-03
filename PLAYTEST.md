@@ -29,7 +29,7 @@ Use anonymous labels such as Tester A, B, and C. Record device/browser and obser
 
 | Session | Device and browser | Tasks completed without help | Exact reaction or observed behavior | Friction | Revision to consider |
 | --- | --- | --- | --- | --- | --- |
-| Pending | — | — | — | — | — |
+| November 3, 2026 | User supplied feedback: cream and berries missing from all French-toast slices; drizzle behaves as a solid; add rewards points. Participant identity and session date were not supplied. | Implemented per-slice garnish, separate liquid pours, and persistent fictional rewards; see TOPPING_AUDIT.md. | Follow-up human reaction not yet collected. | — | — |
 
 Do not replace observations with guesses about motivation. Keep quotations exact, and mark paraphrases as paraphrases.
 
@@ -83,8 +83,19 @@ This record distinguishes observed results from checks still pending. Required c
 
 | Date | Evidence from session | Change made | Follow-up result |
 | --- | --- | --- | --- |
-| Pending | — | — | — |
+| November 3, 2026 | User supplied feedback: cream and berries missing from all French-toast slices; drizzle behaves as a solid; add rewards points. Participant identity and session date were not supplied. | Implemented per-slice garnish, separate liquid pours, and persistent fictional rewards; see TOPPING_AUDIT.md. | Follow-up human reaction not yet collected. |
 
 ## Submission evidence
 
 Before submission, include the deployed URL, final commit, dated participant observations, at least one documented revision based on testing (or a reason none was needed), and a short evaluation of the design claim. Report untested conditions explicitly.
+
+
+## November 3 feedback revision — agent QA
+
+- Audited 23 dishes and 141 option values in TOPPING_AUDIT.md. Focused recipe tests exercise 298 individual topping changes across single-choice combinations; exhaustive structural coverage retains 2,216 full configurations.
+- Rendered and inspected all 69 default/minimal/loaded configurations offline using exact application recipe placements. Contact sheets are in artifacts/feedback-review/. Higher-resolution inspection confirmed cream/berries on all three French-toast slices and visible, supported mac-and-cheese and sundae garnish.
+- Added actual checkout-function tests for shared-lock submission, durable-save-before-success, save failure retaining the cart/points, and another tab spending the selected reward. Real Three.js geometry tests verify liquid clipping plane orientation and cleanup; scene tests use a stub renderer and do not verify GPU appearance.
+- Local browser access was rejected by a saved permission. The user said access was enabled; the authorized retry was rejected by the same policy. No alternate browser/port workaround was attempted. Every-option browser checks, mobile appearance, live pour footage, and interactive rewards verification remain incomplete.
+- These are agent implementation checks, not new participant reactions. No follow-up human evaluation of the design claim has been collected.
+
+- Final local verification: **57 tests passed**, production build passed, and Git whitespace checks passed. Ordinary saves now use the same shared checkout lock and re-read durable history; tests confirm stale tabs cannot restore spent points and denied reads cannot erase history.

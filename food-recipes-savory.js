@@ -1,13 +1,14 @@
 // Explicit placements for original, separately authored savory ingredients.
 // Heights are measured from exported GLBs after manifest-width normalization.
 const H = Object.freeze({
-  bread: .2591546484, frenchToast: .3709197513, pancake: .1906178994,
+  bread: .2605828241, frenchToast: .3722531648, pancake: .1906178994,
   chicken: .5101942513, onion: .1417978611, mushroom: .2507115033,
   pepper: .1634452148, zucchini: .2444780473, avocado: .2717214174,
   butter: .11, syrup: .0077976701, patty: .274304,
 });
 const handled = new Set(['route-66-melt', 'crispy-chicken-club', 'garden-state-melt', 'sunrise-flapjacks', 'blueberry-griddle', 'all-day-breakfast', 'cinnamon-french-toast']);
-const part = (id, asset, x, y, z, scale = 1, yaw = 0) => ({ id, asset, position: [x, y, z], scale, rotation: [0, yaw, 0] });
+const scatterAssets = new Set(['savory-cinnamon', 'savory-blueberries', 'savory-chocolate-chips']);
+const part = (id, asset, x, y, z, scale = 1, yaw = 0) => ({ id, asset, position: [x, y, z], scale, rotation: [0, yaw, 0], ...(asset === 'savory-syrup' ? { motion: 'pour' } : scatterAssets.has(asset) ? { motion: 'scatter' } : {}) });
 const has = (options, key) => (options.toppings || options.vegetables || []).includes(key);
 
 export function savoryRecipe(item, options) {
@@ -115,11 +116,15 @@ function frenchToast(options) {
     const top = base + H.frenchToast * s;
     if (has(options, 'cinnamon')) layers.push(part(`cinnamon-${i}`, 'savory-cinnamon', x, top + .001, z, s * 1.05, yaw));
     if (has(options, 'syrup')) layers.push(part(`syrup-${i}`, 'savory-syrup', x, top + .003, z, s * .9, yaw + .1));
+    // Garnish each serving, using slice-local offsets so rotation and portion
+    // changes cannot leave a garnish behind or attach it only to the last slice.
+    const garnish = (key, asset, dx, dz, scale) => {
+      const gx = x + (dx * Math.cos(yaw) + dz * Math.sin(yaw)) * s;
+      const gz = z + (-dx * Math.sin(yaw) + dz * Math.cos(yaw)) * s;
+      layers.push(part(`${key}-${i}`, asset, gx, top + .003, gz, scale * s, yaw + i * .19));
+    };
+    if (has(options, 'blueberry')) garnish('fresh-berries', 'savory-blueberries', -.38, .18, .60);
+    if (has(options, 'whipped-cream')) garnish('whipped-cream', 'sweet-whipped-cream', .37, -.16, .78);
   });
-  if (has(options, 'blueberry')) layers.push(part('fresh-berries', 'savory-blueberries', -.20, base, 1.24, .54, .3));
-  if (has(options, 'whipped-cream')) {
-    const [x,z,yaw,s] = placements.at(-1);
-    layers.push(part('whipped-cream', 'sweet-whipped-cream', x + .08, base + H.frenchToast * s + .015, z - .12, .65, yaw));
-  }
   return layers;
 }

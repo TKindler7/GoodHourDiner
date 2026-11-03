@@ -1,5 +1,5 @@
 import { CATEGORIES, ITEMS, ITEM_BY_ID, defaultOptions, normalizeOptions, itemPrice } from "./catalog.js";
-import { STORAGE_KEY, COMBO_DISCOUNT, SPECIAL_DISCOUNT, loadState, saveState, createLine, lineUnitPrice, lineSummary, addLine, setLineQuantity, cartCount, cartTotal, completeOrder, savingsTotal } from "./cart.js";
+import { STORAGE_KEY, COMBO_DISCOUNT, SPECIAL_DISCOUNT, loadState, savePendingState, createLine, lineUnitPrice, lineSummary, addLine, setLineQuantity, cartCount, cartTotal, saveCompletedOrder, savingsTotal, pointsBalance, rewardDiscount, orderTotal, REWARD_COST, POINTS_PER_ORDER } from "./cart.js";
 import { createFoodScene } from "./food-scene.js";
 import { specialStatus } from "./special.js";
 import { setupPageMotion } from "./page-motion.js";
@@ -36,6 +36,7 @@ let kitchenTimers = [];
 let activeOrder = null;
 let checkoutId = null;
 let checkoutCart = "";
+const checkoutSignature = value => JSON.stringify([value.cart, value.rewardLineId, pointsBalance(value)]);
 let placingOrder = false;
 let canPersist = true;
 let toastTimer = null;
@@ -43,9 +44,25 @@ let undoCart = null;
 let audioContext = null;
 let previousCount = cartCount(state.cart);
 
-function persist() {
-  canPersist = saveState(storage, state);
-  $("#storage-warning").hidden = canPersist;
+async function persist() {
+  const pending = structuredClone(state);
+  const save = () => {
+    const saved = savePendingState(storage, pending);
+    // Preserve any newer in-memory draft/cart while refreshing the ledger.
+    state.orders = saved.orders;
+    canPersist = true;
+    $("#storage-warning").hidden = true;
+    updateStatus();
+  };
+  try {
+    if (navigator.locks?.request) await navigator.locks.request("good-hour-checkout", save);
+    else save();
+    return true;
+  } catch {
+    canPersist = false;
+    $("#storage-warning").hidden = false;
+    return false;
+  }
 }
 function announce(message) { $("#announcement").textContent = message; }
 function clearUndo() {
@@ -324,6 +341,14 @@ $("#builder-form").addEventListener("change", (event) => {
 });
 function lineDiscount(line) { return (line.combo ? COMBO_DISCOUNT : 0) + (line.special ? SPECIAL_DISCOUNT : 0); }
 function totalDiscount(lines) { return lines.reduce((total, line) => total + lineDiscount(line) * line.quantity, 0); }
+function rewardsCard({ cart = false } = {}) {
+  const balance = pointsBalance(state);
+  const available = balance >= REWARD_COST;
+  const selected = rewardDiscount(state) > 0;
+  const desserts = state.cart.filter(line => ITEM_BY_ID[line.itemId].category === "desserts");
+  const options = cart && available ? (desserts.length ? desserts.map(line => "<button class='reward-choice' type='button' data-reward-line='" + line.id + "' aria-pressed='" + (selected && state.rewardLineId === line.id) + "'>" + icon(selected && state.rewardLineId === line.id ? "check" : "plus") + "<span>" + (selected && state.rewardLineId === line.id ? "Remove reward from " : "Use 100 points on ") + esc(ITEM_BY_ID[line.itemId].name) + "</span></button>").join("") : "<button class='text-button' type='button' data-action='reward-desserts'>Choose a dessert <span aria-hidden='true'>›</span></button>") : "";
+  return "<section class='rewards-card' aria-label='Good Hour Points'><div class='rewards-heading'><span>Good Hour Points</span><strong>" + balance + " <small>points</small></strong></div><meter min='0' max='100' value='" + Math.min(100, balance) + "' aria-label='Progress toward a 100-point dessert reward'></meter><p>" + (available ? "Your dessert reward is ready." : (100 - balance) + " points to your next dessert reward.") + "</p><small>10 points per completed fictional order. 100 points covers one dessert’s base price; extras cost the usual fictional amount. One reward per order. Saved in this browser, with no cash value or expiry.</small>" + options + (selected && cart ? "<p class='reward-applied' role='status'>100 points will be used when you place this order.</p>" : "") + "</section>";
+}
 function renderCart() {
   const previous = new Map(all(".cart-line[data-line-id]").map(row => [row.dataset.lineId, {
     quantity: Number($(".quantity-value", row)?.dataset.value),
@@ -332,16 +357,18 @@ function renderCart() {
   const oldTotal = Number($("#cart-total")?.dataset.value);
   const isUpdating = currentModal?.id === "cart-dialog";
   const count = cartCount(state.cart);
+  const reward = rewardDiscount(state);
+  const total = orderTotal(state);
   const heading = "<div class='cart-heading'><div><p>Good Hour Diner</p><h2 id='cart-title'>Your order.</h2></div><button class='icon-button' data-action='close' type='button' aria-label='Close your order'>" + icon("close") + "</button></div>";
   if (!count) {
-    $("#cart-content").innerHTML = heading + "<div class='empty-state'>" + icon("bag") + "<h3>Something good starts here.</h3><p>Your order is empty. Find a favorite and make it yours.</p><button class='button primary' data-action='browse'>Explore the menu</button></div>";
+    $("#cart-content").innerHTML = heading + rewardsCard({ cart: true }) + "<div class='empty-state'>" + icon("bag") + "<h3>Something good starts here.</h3><p>Your order is empty. Find a favorite and make it yours.</p><button class='button primary' data-action='browse'>Explore the menu</button></div>";
     return;
   }
   const lines = state.cart.map((line) => {
     const item = ITEM_BY_ID[line.itemId];
     return "<article class='cart-line' data-line-id='" + line.id + "'><img src='" + item.image + "' alt='' width='76' height='85'><div><div class='cart-line-heading'><h3>" + esc(item.name) + (line.combo ? " meal" : "") + "</h3><strong class='cart-line-price' data-value='" + lineUnitPrice(line) * line.quantity + "'>" + money(lineUnitPrice(line) * line.quantity) + "</strong></div><p>" + lineSummary(line).map(esc).join(" · ") + "</p><div class='line-actions'><div class='quantity-controls' aria-label='Quantity for " + esc(item.name) + "'><button data-quantity='" + line.id + "' data-delta='-1' aria-label='Remove one " + esc(item.name) + "'>−</button><span class='quantity-value' data-value='" + line.quantity + "' aria-label='Quantity " + line.quantity + "'>" + line.quantity + "</span><button data-quantity='" + line.id + "' data-delta='1' aria-label='Add one " + esc(item.name) + "'" + (line.quantity >= 99 ? " disabled" : "") + ">+</button></div><button class='remove-button' data-remove='" + line.id + "' aria-label='Remove " + esc(item.name) + " from order'>Remove</button></div></div></article>";
   }).join("");
-  $("#cart-content").innerHTML = heading + "<div class='cart-items'>" + lines + "</div><div class='cart-summary'><div class='summary-row total'><span>Fictional total</span><strong id='cart-total' data-value='" + cartTotal(state.cart) + "'>" + money(cartTotal(state.cart)) + "</strong></div>" + (totalDiscount(state.cart) ? "<div class='summary-row actual'><span>Offers included</span><span>−" + money(totalDiscount(state.cart)) + "</span></div>" : "") + "<div class='summary-row actual'><span>Actually charged</span><strong>$0</strong></div><button class='button primary' data-action='checkout'>Review fictional order " + icon("arrow") + "</button><p>No payment. No delivery. Just the good feeling.</p></div>";
+  $("#cart-content").innerHTML = heading + "<div class='cart-items'>" + lines + "</div>" + rewardsCard({ cart: true }) + "<div class='cart-summary'><div class='summary-row total'><span>Fictional total</span><strong id='cart-total' data-value='" + total + "'>" + money(total) + "</strong></div>" + (totalDiscount(state.cart) ? "<div class='summary-row actual'><span>Offers included</span><span>−" + money(totalDiscount(state.cart)) + "</span></div>" : "") + (reward ? "<div class='summary-row actual'><span>Points reward · 100 points</span><span>−" + money(reward) + "</span></div>" : "") + "<div class='summary-row actual'><span>Actually charged</span><strong>$0</strong></div><button class='button primary' data-action='checkout'>Review fictional order " + icon("arrow") + "</button><p>No payment. No delivery. Just the good feeling.</p></div>";
   if (isUpdating) {
     for (const row of all(".cart-line[data-line-id]")) {
       const before = previous.get(row.dataset.lineId);
@@ -350,7 +377,7 @@ function renderCart() {
       animateAmount(quantity, before.quantity, Number(quantity.dataset.value), String, { duration: 240 });
       animateAmount(total, before.total, Number(total.dataset.value), money);
     }
-    animateAmount($("#cart-total"), oldTotal, cartTotal(state.cart), money);
+    animateAmount($("#cart-total"), oldTotal, total, money);
   }
 }
 function openCart(arrivalId = null) {
@@ -365,10 +392,11 @@ function beginCheckout() {
   if (!state.cart.length) return openCart();
   placingOrder = false;
   checkoutId = "order-" + (crypto.randomUUID?.() || Date.now().toString(36));
-  checkoutCart = JSON.stringify(state.cart);
-  const total = cartTotal(state.cart);
+  checkoutCart = checkoutSignature(state);
+  const total = orderTotal(state);
+  const reward = rewardDiscount(state);
   const discount = totalDiscount(state.cart);
-  $("#journey-content").innerHTML = modalHeader("One last look", "Close order review") + "<div class='checkout-body'><p class='eyebrow'>Only a good feeling at checkout</p><h2 id='journey-title'>Ready when you are.</h2><p>Your meal is all set. Place this fictional order to see it come together.</p><div class='fiction-note'>" + icon("spark") + "<p><strong>This is a simulation.</strong> No payment is collected, no personal details are needed, and no food is prepared or delivered.</p></div><div class='checkout-lines'>" + checkoutRows(state.cart) + "</div><div class='checkout-totals'><div class='summary-row'><span>Menu subtotal</span><span>" + money(total + discount) + "</span></div>" + (discount ? "<div class='summary-row'><span>Meal & special offers</span><span>−" + money(discount) + "</span></div>" : "") + "<div class='summary-row total'><span>Fictional total</span><strong>" + money(total) + "</strong></div><div class='summary-row actual'><span>Actual charge</span><strong>$0</strong></div></div><div class='checkout-actions'><button class='text-button' data-action='cart'>Back to your order</button><button class='button primary' data-action='place-order'>Place fictional order " + icon("arrow") + "</button></div></div>";
+  $("#journey-content").innerHTML = modalHeader("One last look", "Close order review") + "<div class='checkout-body'><p class='eyebrow'>Only a good feeling at checkout</p><h2 id='journey-title'>Ready when you are.</h2><p>Your meal is all set. Place this fictional order to see it come together.</p><div class='fiction-note'>" + icon("spark") + "<p><strong>This is a simulation.</strong> No payment is collected, no personal details are needed, and no food is prepared or delivered.</p></div><div class='checkout-lines'>" + checkoutRows(state.cart) + "</div><div class='checkout-totals'><div class='summary-row'><span>Menu subtotal</span><span>" + money(total + discount + reward) + "</span></div>" + (discount ? "<div class='summary-row'><span>Meal & special offers</span><span>−" + money(discount) + "</span></div>" : "") + (reward ? "<div class='summary-row'><span>Points reward · 100 points</span><span>−" + money(reward) + "</span></div>" : "") + "<div class='summary-row total'><span>Fictional total</span><strong>" + money(total) + "</strong></div><div class='summary-row actual'><span>Actual charge</span><strong>$0</strong></div><p class='reward-checkout-note'>You’ll earn 10 Good Hour Points when this order is saved.</p></div><div class='checkout-actions'><button class='text-button' data-action='cart'>Back to your order</button><button class='button primary' data-action='place-order'>Place fictional order " + icon("arrow") + "</button></div></div>";
   openModal($("#journey-dialog"));
 }
 async function placeOrder() {
@@ -376,21 +404,33 @@ async function placeOrder() {
   clearUndo();
   placingOrder = true;
   const submit = $("[data-action='place-order']");
-  if (submit) { submit.disabled = true; submit.textContent = "Order received"; }
+  if (submit) { submit.disabled = true; submit.textContent = "Saving your order…"; }
   const submitOrder = () => {
-    const latest = canPersist ? loadState(storage) : state;
-    if (JSON.stringify(latest.cart) !== checkoutCart) {
+    // Read failures must not be mistaken for an empty saved history. When a
+    // previous save failed, only continue if its snapshot still matches the
+    // last durable state; otherwise ask the visitor to review the newer state.
+    storage.getItem(STORAGE_KEY);
+    const saved = loadState(storage);
+    const latest = canPersist ? saved : { ...state, orders: saved.orders };
+    if (!canPersist && pointsBalance(saved) !== pointsBalance(state)) {
+      state = { ...saved, cart: state.cart, rewardLineId: state.rewardLineId };
+      updateStatus(); openCart();
+      showToast("Your points changed in another tab. Please review your order.");
+      return;
+    }
+    if (checkoutSignature(latest) !== checkoutCart) {
       state = latest;
       updateStatus();
       openCart();
       showToast("Your order changed in another tab. Please review it.");
       return;
     }
-    const result = completeOrder(latest, { id: checkoutId, createdAt: new Date().toISOString() });
-    if (!result.order) { openCart(); return; }
+    const result = saveCompletedOrder(storage, latest, { id: checkoutId, createdAt: new Date().toISOString() });
+    if (!result.order) { state = result.state; openCart(); if (result.error) showToast("Your points changed. Remove the reward or earn more points before ordering."); return; }
     state = result.state;
     activeOrder = result.order;
-    persist();
+    canPersist = true;
+    $("#storage-warning").hidden = true;
     updateStatus();
     sound("order");
     announce("Fictional order received. Nothing was charged.");
@@ -398,10 +438,15 @@ async function placeOrder() {
   };
   try {
     if (navigator.locks?.request) await navigator.locks.request("good-hour-checkout", submitOrder);
-    else submitOrder();
+    else if (state.rewardLineId) {
+      openCart();
+      showToast("Reward redemption needs a browser with secure shared checkout. Your points have not been used.");
+    } else submitOrder();
   } catch {
+    canPersist = false;
+    $("#storage-warning").hidden = false;
     openCart();
-    showToast("That order could not be completed. Your cart is still here.");
+    showToast("Your order could not be saved. Your cart and points are unchanged. Free some browser storage and try again.");
   } finally {
     placingOrder = false;
     checkoutId = null;
@@ -473,7 +518,8 @@ function renderReceipt(order, fromHistory = false) {
   activeOrder = order;
   const date = new Date(order.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const discount = totalDiscount(order.lines);
-  $("#journey-content").innerHTML = modalHeader("Your Good Hour receipt", "Close receipt") + "<div class='receipt-body'><div class='receipt-hero'><span class='receipt-check'>" + icon("check") + "</span><p class='eyebrow'>The meal was pretend. The feeling is yours.</p><h2 id='journey-title'>Keep the good feeling.</h2><p>And every real dollar.</p></div><div class='receipt-paper'><div class='receipt-meta'><span>GOOD HOUR DINER<br>FICTIONAL ORDER</span><span>" + esc(date) + "<br>#" + esc(order.id.slice(-6).toUpperCase()) + "</span></div>" + order.lines.map((line) => "<div class='receipt-line'><strong>" + line.quantity + " × " + esc(ITEM_BY_ID[line.itemId].name) + (line.combo ? " meal" : "") + "</strong><span>" + money(((line.unitPrice ?? lineUnitPrice(line)) + lineDiscount(line)) * line.quantity) + "</span><small>" + lineSummary(line).map(esc).join(" · ") + "</small></div>").join("") + "<div class='receipt-totals'><div class='summary-row'><span>Menu subtotal</span><span>" + money(order.total + discount) + "</span></div>" + (discount ? "<div class='summary-row'><span>Meal & special offers</span><span>−" + money(discount) + "</span></div>" : "") + "<div class='summary-row'><span>Fictional total</span><strong>" + money(order.total) + "</strong></div><div class='summary-row'><span>Actually paid</span><strong>$0</strong></div><div class='kept'><span>Money not spent</span><strong id='receipt-kept'>" + money(order.total) + "</strong></div></div><p>No purchase, payment, preparation, or delivery occurred.<br>This receipt is a reflection on a fictional order.</p></div><p class='receipt-cumulative'>Across your visits: <strong>" + money(savingsTotal(state)) + "</strong> in money not spent.</p><div class='receipt-actions'><button class='button primary' data-action='browse'>Back to the menu</button><button class='text-button' data-action='history'>" + (fromHistory ? "Back to your visits" : "View your visits") + " <span aria-hidden='true'>›</span></button></div></div>";
+  const reward = order.reward?.discount || 0;
+  $("#journey-content").innerHTML = modalHeader("Your Good Hour receipt", "Close receipt") + "<div class='receipt-body'><div class='receipt-hero'><span class='receipt-check'>" + icon("check") + "</span><p class='eyebrow'>The meal was pretend. The feeling is yours.</p><h2 id='journey-title'>Keep the good feeling.</h2><p>And every real dollar.</p></div><div class='receipt-paper'><div class='receipt-meta'><span>GOOD HOUR DINER<br>FICTIONAL ORDER</span><span>" + esc(date) + "<br>#" + esc(order.id.slice(-6).toUpperCase()) + "</span></div>" + order.lines.map((line) => "<div class='receipt-line'><strong>" + line.quantity + " × " + esc(ITEM_BY_ID[line.itemId].name) + (line.combo ? " meal" : "") + "</strong><span>" + money(((line.unitPrice ?? lineUnitPrice(line)) + lineDiscount(line)) * line.quantity) + "</span><small>" + lineSummary(line).map(esc).join(" · ") + "</small></div>").join("") + "<div class='receipt-totals'><div class='summary-row'><span>Menu subtotal</span><span>" + money(order.total + discount + reward) + "</span></div>" + (discount ? "<div class='summary-row'><span>Meal & special offers</span><span>−" + money(discount) + "</span></div>" : "") + (reward ? "<div class='summary-row'><span>Points reward · 100 points</span><span>−" + money(reward) + "</span></div>" : "") + "<div class='summary-row'><span>Fictional total</span><strong>" + money(order.total) + "</strong></div><div class='summary-row'><span>Actually paid</span><strong>$0</strong></div><div class='kept'><span>Money not spent</span><strong id='receipt-kept'>" + money(order.total) + "</strong></div></div><p>No purchase, payment, preparation, or delivery occurred.<br>This receipt is a reflection on a fictional order.</p></div><p class='receipt-cumulative'>Across your visits: <strong>" + money(savingsTotal(state)) + "</strong> in money not spent.</p><div class='receipt-points'><strong>+" + (order.pointsEarned ?? POINTS_PER_ORDER) + " Good Hour Points</strong>" + (order.pointsSpent ? "<span>" + order.pointsSpent + " points redeemed on this visit.</span>" : "") + "<span>Current balance: " + pointsBalance(state) + " points</span></div><div class='receipt-actions'><button class='button primary' data-action='browse'>Back to the menu</button><button class='text-button' data-action='history'>" + (fromHistory ? "Back to your visits" : "View your visits") + " <span aria-hidden='true'>›</span></button></div></div>";
   openModal($("#journey-dialog"));
   animateUI($(".receipt-paper"), [{ opacity: 0, transform: "translateY(-24px) scaleY(.94)" }, { opacity: 1, transform: "none" }], { duration: 700, delay: 100, fill: "backwards" });
   animateUI($(".receipt-check"), [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1.08)", opacity: 1, offset: .7 }, { transform: "scale(1)", opacity: 1 }], { duration: 520 });
@@ -481,7 +527,7 @@ function renderReceipt(order, fromHistory = false) {
 }
 function openHistory() {
   const total = savingsTotal(state);
-  $("#history-content").innerHTML = modalHeader("Good things, remembered", "Close order history") + "<div class='history-body'><p class='eyebrow'>Your corner of the diner</p><h2 id='history-title'>Your visits.</h2><p class='history-intro'>Every fictional order, saved in this browser. Come back for the feeling, and keep the real money.</p><div class='history-total'><span>Money not spent</span><strong>" + money(total) + "</strong></div>" + (state.orders.length ? state.orders.map((order) => {
+  $("#history-content").innerHTML = modalHeader("Good things, remembered", "Close order history") + "<div class='history-body'><p class='eyebrow'>Your corner of the diner</p><h2 id='history-title'>Your visits.</h2><p class='history-intro'>Every fictional order, saved in this browser. Come back for the feeling, and keep the real money.</p><div class='history-total'><span>Money not spent</span><strong>" + money(total) + "</strong></div>" + rewardsCard() + (state.orders.length ? state.orders.map((order) => {
     const first = ITEM_BY_ID[order.lines[0].itemId];
     const quantity = order.lines.reduce((sum, line) => sum + line.quantity, 0);
     const date = new Date(order.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -533,10 +579,18 @@ document.addEventListener("click", (event) => {
     clearUndo();
     const next = target.dataset.remove ? 0 : line.quantity + Number(target.dataset.delta);
     state.cart = setLineQuantity(state.cart, id, next);
+    if (!state.cart.some(line => line.id === state.rewardLineId)) state.rewardLineId = null;
     persist(); updateStatus(); renderCart();
     const replacement = target.dataset.remove ? $(".cart-heading button") : $("[data-quantity='" + id + "'][data-delta='" + target.dataset.delta + "']") || $(".cart-heading button");
     replacement?.focus({ preventScroll: true });
     announce(ITEM_BY_ID[line.itemId].name + (next <= 0 ? " removed from your order." : " quantity " + next + "."));
+    return;
+  }
+  if (target.dataset.rewardLine) {
+    state.rewardLineId = state.rewardLineId === target.dataset.rewardLine ? null : target.dataset.rewardLine;
+    persist(); renderCart();
+    $("[data-reward-line='" + target.dataset.rewardLine + "']")?.focus({ preventScroll: true });
+    announce(rewardDiscount(state) ? "Dessert reward applied. Points are used only when the order is placed." : "Reward removed. Your points are unchanged.");
     return;
   }
   if (target.dataset.receipt) { renderReceipt(state.orders.find((order) => order.id === target.dataset.receipt), true); return; }
@@ -546,6 +600,7 @@ document.addEventListener("click", (event) => {
     case "combo": openBuilder("midnight-stack", { combo: true, resume: Boolean(state.draft?.combo) }); break;
     case "resume-draft": if (state.draft) openBuilder(state.draft.itemId, { resume: true }); break;
     case "history": openHistory(); break;
+    case "reward-desserts": category = "desserts"; renderMenu(true); closeModal(); $("#menu").scrollIntoView({ behavior: reducedMotion.matches ? "instant" : "smooth" }); break;
     case "browse": closeModal(); $("#menu").scrollIntoView({ behavior: reducedMotion.matches ? "instant" : "smooth" }); break;
     case "checkout": beginCheckout(); break;
     case "place-order": placeOrder(); break;
@@ -562,7 +617,7 @@ document.addEventListener("click", (event) => {
       const changed = state.cart.find(line => !previousQuantities.has(line.id) || previousQuantities.get(line.id) !== line.quantity);
       persist(); updateStatus(); sound(); announce(ITEM_BY_ID[draft.itemId].name + " added to your order."); openCart(changed?.id); break;
     }
-    case "new-order": undoCart = structuredClone(state.cart); state.cart = []; persist(); updateStatus(); showToast("Your order is clear.", true); break;
+    case "new-order": undoCart = structuredClone(state.cart); state.cart = []; state.rewardLineId = null; persist(); updateStatus(); showToast("Your order is clear.", true); break;
     case "undo-clear": if (undoCart) { state.cart = undoCart; undoCart = null; persist(); updateStatus(); $("#toast").hidden = true; announce("Your order was restored."); } break;
   }
 });

@@ -3,6 +3,8 @@ import { ITEM_BY_ID, defaultOptions, itemPrice, normalizeOptions, optionSummary 
 export const STORAGE_KEY = "good-hour-state-v2";
 export const COMBO_DISCOUNT = 300;
 export const SPECIAL_DISCOUNT = 200;
+export const POINTS_PER_ORDER = 10;
+export const REWARD_COST = 100;
 const LEGACY_KEYS = ["good-hour-cart-v1", "pennyglass-cart-v1"];
 const LEGACY_ITEMS = new Set(["midnight-stack", "sunrise-flapjacks", "cherry-cloud-shake"]);
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -118,7 +120,7 @@ export function cartTotal(cart) {
 }
 
 export function emptyState() {
-  return { version: 2, cart: [], orders: [], draft: null, sound: false, visited: false };
+  return { version: 2, rewardsVersion: 1, rewardLineId: null, cart: [], orders: [], draft: null, sound: false, visited: false };
 }
 
 export function normalizeDraft(value) {
@@ -163,16 +165,56 @@ function normalizeOrders(value) {
       createdAt: new Date(candidate.createdAt).toISOString(),
       lines,
       total: lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
+      rewardsVersion: 1,
+      pointsEarned: candidate.rewardsVersion === 1 && Number.isSafeInteger(candidate.pointsEarned) && candidate.pointsEarned >= 0 && candidate.pointsEarned <= 1000 ? candidate.pointsEarned : POINTS_PER_ORDER,
+      pointsSpent: candidate.rewardsVersion === 1 && Number.isSafeInteger(candidate.pointsSpent) && candidate.pointsSpent > 0 && candidate.pointsSpent <= 100000 ? candidate.pointsSpent : REWARD_COST,
+      reward: normalizeReward(candidate.reward, lines),
     });
+  }
+  // The order history is the rewards ledger: unique order IDs prevent duplicate
+  // credits. Old orders earn the same ten points exactly once, without a second
+  // migration counter that could drift. Validate debits oldest-first.
+  let balance = 0;
+  for (const order of [...orders].reverse()) {
+    if (order.reward && balance >= order.pointsSpent) {
+      order.total -= order.reward.discount;
+      balance -= order.pointsSpent;
+    } else { order.reward = null; order.pointsSpent = 0; }
+    balance += order.pointsEarned;
   }
   return orders;
 }
 
+function normalizeReward(value, lines) {
+  if (!isRecord(value)) return null;
+  const line = lines.find(entry => entry.id === value.lineId && ITEM_BY_ID[entry.itemId].category === "desserts");
+  if (!line || (value.itemId !== undefined && value.itemId !== line.itemId) || !Number.isSafeInteger(value.discount) || value.discount <= 0 || value.discount > line.unitPrice || value.discount > 100000) return null;
+  if (value.basePrice !== value.discount) return null;
+  return { lineId: line.id, itemId: line.itemId, basePrice: value.basePrice, discount: value.discount };
+}
+
+export function pointsBalance(value) {
+  return normalizeOrders(value?.orders).reduce((total, order) => total + order.pointsEarned - order.pointsSpent, 0);
+}
+
+export function rewardDiscount(value) {
+  if (pointsBalance(value) < REWARD_COST) return 0;
+  const line = normalizeCart(value?.cart).find(entry => entry.id === value?.rewardLineId && ITEM_BY_ID[entry.itemId].category === "desserts");
+  return line ? Math.min(ITEM_BY_ID[line.itemId].price, lineUnitPrice(line)) : 0;
+}
+
+export function orderTotal(value) {
+  return cartTotal(value?.cart) - rewardDiscount(value);
+}
+
 export function normalizeState(value) {
   if (!isRecord(value) || value.version !== 2) return emptyState();
+  const cart = normalizeCart(value.cart);
   return {
     version: 2,
-    cart: normalizeCart(value.cart),
+    rewardsVersion: 1,
+    rewardLineId: cart.some(line => line.id === value.rewardLineId && ITEM_BY_ID[line.itemId].category === "desserts") ? value.rewardLineId : null,
+    cart,
     orders: normalizeOrders(value.orders),
     draft: normalizeDraft(value.draft),
     sound: value.sound === true,
@@ -226,11 +268,34 @@ export function completeOrder(value, details = {}) {
     ? new Date(details.createdAt).toISOString()
     : new Date().toISOString();
   const lines = state.cart.map((line) => ({ ...line, options: normalizeOptions(line.itemId, line.options), combo: line.combo ? { ...line.combo } : null, unitPrice: lineUnitPrice(line) }));
-  const order = { id, createdAt, lines, total: cartTotal(state.cart) };
-  return { state: { ...state, cart: [], orders: [order, ...state.orders], visited: true }, order };
+  const discount = rewardDiscount(state);
+  if (state.rewardLineId && !discount) return { state, order: null, error: "reward-unavailable" };
+  const rewardLine = discount ? lines.find(line => line.id === state.rewardLineId) : null;
+  const reward = rewardLine ? { lineId: rewardLine.id, itemId: rewardLine.itemId, basePrice: discount, discount } : null;
+  const order = { id, createdAt, lines, total: cartTotal(state.cart) - discount, rewardsVersion: 1, pointsEarned: POINTS_PER_ORDER, pointsSpent: reward ? REWARD_COST : 0, reward };
+  return { state: { ...state, cart: [], rewardLineId: null, orders: [order, ...state.orders], visited: true }, order };
 }
 
 export function savingsTotal(value) {
   const orders = Array.isArray(value) ? normalizeOrders(value) : normalizeState(value).orders;
   return orders.reduce((sum, order) => sum + order.total, 0);
+}
+
+// Commit first; the caller may only show success/clear its live cart after this
+// single storage write succeeds. Call under the browser's shared checkout lock.
+export function saveCompletedOrder(storage, value, details = {}) {
+  const result = completeOrder(value, details);
+  if (result.order && !saveState(storage, result.state)) throw new Error("Order could not be saved");
+  return result;
+}
+
+// Ordinary cart/draft/preference saves never own the completed-order ledger.
+// Re-read it inside the same lock used by checkout, so a stale tab cannot undo
+// a completed order or restore already-spent points.
+export function savePendingState(storage, value) {
+  storage.getItem(STORAGE_KEY); // Propagate denied reads instead of replacing history with an empty state.
+  const durable = loadState(storage);
+  const merged = normalizeState({ ...value, orders: durable.orders });
+  if (!saveState(storage, merged)) throw new Error("Changes could not be saved");
+  return merged;
 }

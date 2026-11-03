@@ -41,3 +41,12 @@ A review caught that a countdown with a permanently renewed discount would not c
 The ordering model protects exact prices and completed receipts. A later review also added Undo invalidation after subsequent cart changes, storage-clear handling across tabs, and a guarded checkout that reloads and compares the reviewed cart before recording the order. Browsers with Web Locks serialize concurrent checkouts; other browsers retain the fresh-state comparison and stable order identifier.
 
 Human testing will still need to establish whether the ready reveal and receipt create the intended feeling. The current technical record distinguishes automated/data checks, isolated 3D observations, and integrated browser checks that remain pending rather than treating them as interchangeable evidence.
+
+
+## November 3 — topping accuracy, liquid motion, and rewards
+
+The user supplied playtest feedback and then expanded the request to every item's toppings. Structural recipe uniqueness did not catch French-toast garnish placed on only one slice. This revision adds explicit placement/support expectations and a separate visual audit. A pancake stack still gets a top garnish, while separate French-toast slices each receive the selected cream and berries.
+
+Liquids need their own finishing motion after the food is supported, rather than sharing the solid ingredient drop/bounce. Camera input must remain independent. Rewards use the proposed 10 points per fictional order and 100 points for a dessert base price, with extras itemized. This gives the rewards an explicit rule without tying earning to a larger fictional bill. The points are saved locally with order evidence; the existing money-not-spent reflection remains.
+
+Browser verification was initially blocked by the saved local-origin permission. That is a verification limitation, not evidence of correct visual behavior. Offline renders and automated tests are recorded separately from browser checks and human responses.

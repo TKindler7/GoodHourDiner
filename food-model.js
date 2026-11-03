@@ -9,7 +9,7 @@ export function foodRecipe(itemOrId, value) {
   const item = ITEM_BY_ID[typeof itemOrId === "string" ? itemOrId : itemOrId?.id];
   if (!item) throw new Error("This dish is not on the menu.");
   const options = normalizeOptions(item.id, value);
-  if (item.model === "burger") return burgerPilotLayers(options);
+  if (item.model === "burger") return burgerPilotLayers(options, item.id);
   const recipe = savoryRecipe(item, options) ?? sidesRecipe(item, options) ?? sweetRecipe(item, options);
   if (!Array.isArray(recipe) || !recipe.length) throw new Error(`The ${item.name} preview is unavailable.`);
   return recipe;

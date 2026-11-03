@@ -47,7 +47,7 @@ test("burger siblings honor their own defaults and keep independent toppings", (
     const recipe = foodRecipe(item);
     const selected = defaultOptions(item.id);
     for (const topping of ["lettuce", "tomato", "pickle", "onion", "bacon", "extra-patty"]) assert.equal(recipe.some(layer => layer.id === topping), selected.toppings.includes(topping), `${item.id} ${topping}`);
-    assert.equal(foodRecipe(item, { ...selected, toppings: [], cheese: "none", sauce: "none" }).length, 3);
+    assert.equal(foodRecipe(item, { ...selected, toppings: [], cheese: "none", sauce: "none" }).length, item.id === 'maple-bacon' ? 4 : 3);
   }
 });
 

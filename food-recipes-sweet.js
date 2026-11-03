@@ -1,5 +1,6 @@
 // Original authored drink and dessert geometry. All positions use Three.js Y-up.
-const part = (id, asset, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0]) => ({ id, asset: `sweet-${asset}`, position, scale, rotation });
+const pourAssets = new Set(['drizzle-scoop', 'drizzle-flat', 'drizzle-cream']);
+const part = (id, asset, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0]) => ({ id, asset: `sweet-${asset}`, position, scale, rotation, ...(pourAssets.has(asset) ? { motion: 'pour' } : asset === 'nuts' ? { motion: 'scatter' } : {}) });
 const selected = (options, key) => (options.toppings || []).includes(key);
 // Large servings use a taller vessel, so the change stays visible after camera fitting.
 // Cream, cherries, scoops and ice keep their natural proportions.

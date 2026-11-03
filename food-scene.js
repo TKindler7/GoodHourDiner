@@ -1,4 +1,5 @@
 import { foodRecipe, foodPlacements, validateFoodManifest } from "./food-model.js";
+import { createPourEffect } from "./food-pour.js";
 
 export async function createFoodScene(container, settings = {}) {
   if (!container || !settings.item || settings.signal?.aborted) return null;
@@ -33,6 +34,7 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
+  renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const canvas = renderer.domElement;
@@ -83,12 +85,15 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
   let reduce = reducedMotion || motion.matches;
   let disposed = false, failed = false, request = 0, frame = 0, viewFrame = 0;
   let viewTarget = null;
+  let pours = new Map();
   let layers = [], targetHeight = 1, distance = 7, homeDistance = 7, elevation = .42, homeElevation = .42, currentItemId = null;
   const pointers = new Map();
   let pinchDistance = 0;
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   cleanups.push(() => {
     disposed = true; request++; cancelAnimationFrame(frame); stopView();
+    for (const pour of pours.values()) pour.dispose();
+    pours.clear();
     for (const object of allocated) disposeModel(object);
     allocated.clear(); templates.clear(); pointers.clear();
   });
@@ -114,6 +119,7 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
     if (disposed || failed) return;
     camera.position.set(0, targetHeight + distance * Math.sin(elevation), distance * Math.cos(elevation));
     camera.lookAt(0, targetHeight, 0);
+    for (const [layer, pour] of pours) pour.update(layer.userData.pourProgress ?? 1);
     renderer.render(scene, camera);
   }
   function stopView() {
@@ -127,6 +133,7 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
       layer.position.copy(layer.userData.restPosition);
       layer.scale.copy(layer.userData.restScale);
       layer.visible = true;
+      pours.get(layer)?.update(1);
     }
     if (draw) render();
   }
@@ -136,37 +143,61 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
     // Render the arrival pose before revealing the 3D stage. Expensive first
     // texture uploads must not consume the animation's clock or flash the rest pose.
     let start;
-    const positions = layers.map((layer, index) => incremental ? layer.userData.arrivalPosition : layer.userData.restPosition.clone().add(new THREE.Vector3(0, .65 + Math.min(index, 8) * .16, 0)));
-    layers.forEach((layer, index) => {
-      layer.position.copy(positions[index]);
-      layer.visible = incremental || index === 0;
-      if (incremental) layer.scale.copy(layer.userData.arrivalScale);
+    const solids = layers.filter(layer => layer.userData.motion !== "pour");
+    const positions = new Map(solids.map((layer, index) => [layer, incremental ? layer.userData.arrivalPosition : layer.userData.restPosition.clone().add(new THREE.Vector3(0, .65 + Math.min(index, 8) * .16, 0))]));
+    const slots = new Map();
+    let clock = 0;
+    for (const layer of layers) {
+      if (layer.userData.motion === "pour" && layer.userData.pourStage !== "inline") continue;
+      slots.set(layer, clock);
+      clock += layer.userData.motion === "pour" ? 1050 : 460;
+    }
+    const finishAt = incremental ? 400 : clock;
+    layers.forEach(layer => {
+      if (pours.has(layer)) {
+        layer.position.copy(layer.userData.restPosition);
+        const retained = incremental && (!layer.userData.newPour || layer.userData.pourStage === "inline");
+        layer.visible = retained;
+        pours.get(layer).update(retained ? 1 : 0);
+      } else {
+        layer.position.copy(positions.get(layer));
+        layer.visible = incremental || layer === solids[0];
+        if (incremental) layer.scale.copy(layer.userData.arrivalScale);
+      }
     });
     render();
     function tick(now) {
       if (disposed || failed) return;
       start ??= now;
       let active = false;
-      layers.forEach((layer, index) => {
-        // Each ingredient completes its drop and small rebound before the next
-        // appears. Customization changes keep their quicker, concurrent settling.
-        const elapsed = now - start - (incremental ? 0 : index * 460);
+      solids.forEach((layer, index) => {
+        const elapsed = now - start - (incremental ? 0 : slots.get(layer));
         const progress = clamp(elapsed / (incremental ? 400 : 460), 0, 1);
         layer.visible = incremental || elapsed >= 0;
         if (incremental) {
           const eased = 1 - (1 - progress) ** 3;
-          layer.position.lerpVectors(positions[index], layer.userData.restPosition, eased);
+          layer.position.lerpVectors(positions.get(layer), layer.userData.restPosition, eased);
           layer.scale.lerpVectors(layer.userData.arrivalScale, layer.userData.restScale, eased);
         } else {
           const drop = clamp(progress / .65, 0, 1);
           const rebound = clamp((progress - .65) / .35, 0, 1);
           layer.position.copy(layer.userData.restPosition);
           layer.position.y += progress < .65
-            ? (positions[index].y - layer.userData.restPosition.y) * (1 - drop * drop)
-            : .09 * Math.sin(Math.PI * rebound);
+            ? (positions.get(layer).y - layer.userData.restPosition.y) * (1 - drop * drop)
+            : (layer.userData.motion === "scatter" ? 0 : .09 * Math.sin(Math.PI * rebound));
         }
         if (progress < 1) active = true;
       });
+      // All liquid pieces finish together, even on a three-slice plate. Camera
+      // movement updates their clipping planes without changing this clock.
+      for (const [layer, pour] of pours) {
+        if (incremental && (!layer.userData.newPour || layer.userData.pourStage === "inline")) { pour.update(1); continue; }
+        const elapsed = now - start - (layer.userData.pourStage === "inline" ? slots.get(layer) : finishAt);
+        const progress = clamp(elapsed / 1050, 0, 1);
+        layer.visible = elapsed >= 0;
+        pour.update(progress);
+        if (progress < 1) active = true;
+      }
       render();
       frame = active ? requestAnimationFrame(tick) : 0;
     }
@@ -180,7 +211,9 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
       layer.position.copy(layer.userData.restPosition);
       layer.scale.copy(layer.userData.restScale);
     });
-    const box = new THREE.Box3().setFromObject(turntable);
+    turntable.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for (const layer of layers) box.union(new THREE.Box3().setFromObject(layer));
     layers.forEach((layer, index) => {
       layer.position.copy(poses[index].position);
       layer.scale.copy(poses[index].scale);
@@ -267,6 +300,8 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
       if (disposed || failed || token !== request) return;
       settle();
       const previous = new Map(layers.map(layer => [layer.name, { asset: layer.userData.asset, position: layer.position.clone(), scale: layer.scale.clone() }]));
+      for (const pour of pours.values()) pour.dispose();
+      pours.clear();
       turntable.clear();
       const firstRecipe = currentItemId !== nextItem.id;
       if (firstRecipe) {
@@ -281,15 +316,24 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
         instance.rotation.fromArray(placements[index].rotation);
         instance.scale.fromArray(placements[index].scale);
         instance.userData.asset = recipe[index].asset;
+        instance.userData.motion = recipe[index].motion || "solid";
+        instance.userData.pourStage = recipe[index].pourStage || "finish";
         instance.userData.restPosition = instance.position.clone();
         instance.userData.restScale = instance.scale.clone();
         const before = previous.get(instance.name);
         const sameIngredient = !firstRecipe && before?.asset === recipe[index].asset;
+        instance.userData.newPour = !sameIngredient || !before.position.equals(instance.position) || !before.scale.equals(instance.scale);
         instance.userData.arrivalPosition = sameIngredient ? before.position : instance.position.clone().add(new THREE.Vector3(0, .35, 0));
         instance.userData.arrivalScale = sameIngredient ? before.scale : instance.scale.clone();
         turntable.add(instance);
         return instance;
       });
+      for (const layer of layers) {
+        if (layer.userData.motion !== "pour") continue;
+        const pour = createPourEffect(THREE, layer);
+        pours.set(layer, pour);
+        turntable.add(pour.effect);
+      }
       container.dataset.ingredients = recipe.map(layer => layer.id).join(",");
       container.dataset.item = nextItem.id;
       canvas.setAttribute("aria-label", `${nextItem.name} in 3D, showing your selected ingredients. Drag to rotate. Arrow keys rotate and zoom. Home resets the view.`);
@@ -373,7 +417,10 @@ async function createTexturedScene(container, { item, options = {}, reducedMotio
   }
   function wheel(event) { event.preventDefault(); zoom(-event.deltaY * .004); }
   function contextLost(event) { event.preventDefault(); failed = true; request++; cancelAnimationFrame(frame); stopView(); canvas.style.visibility = "hidden"; canvas.tabIndex = -1; container.setAttribute("aria-busy", "false"); onState({ ready: false, loading: false }); onFallback(); }
-  function motionChanged(event) { reduce = event.matches; if (reduce) settle(); }
+  function motionChanged(event) { reduce = reducedMotion || event.matches; if (reduce) settle(); }
+  function visibilityChanged() { if (document.hidden) settle(false); }
+  document.addEventListener("visibilitychange", visibilityChanged);
+  cleanups.push(() => document.removeEventListener("visibilitychange", visibilityChanged));
   const events = [["pointerdown", pointerDown], ["pointermove", pointerMove], ["pointerup", pointerUp], ["pointercancel", pointerUp], ["lostpointercapture", pointerUp], ["keydown", keyboard], ["webglcontextlost", contextLost]];
   for (const [name, handler] of events) canvas.addEventListener(name, handler);
   cleanups.push(() => { for (const [name, handler] of events) canvas.removeEventListener(name, handler); });

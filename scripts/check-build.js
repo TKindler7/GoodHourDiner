@@ -17,7 +17,7 @@ if (missing.length) {
   const outputDir = resolve(projectRoot, "public");
   rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(outputDir, { recursive: true });
-  for (const filename of ["index.html", "styles.css", "app.js", "cart.js", "catalog.js", "food-scene.js", "food-model.js", "food-recipes-savory.js", "food-recipes-sides.js", "food-recipes-sweet.js", "special.js", "page-motion.js", "browse-motion.js", "page-motion.css", "ui-motion.js", "ui-motion.css"]) {
+  for (const filename of ["index.html", "styles.css", "app.js", "cart.js", "catalog.js", "food-scene.js", "food-pour.js", "food-model.js", "food-recipes-savory.js", "food-recipes-sides.js", "food-recipes-sweet.js", "special.js", "page-motion.js", "browse-motion.js", "page-motion.css", "ui-motion.js", "ui-motion.css"]) {
     copyFileSync(resolve(projectRoot, filename), resolve(outputDir, filename));
   }
   // Preserve the original one-burger review page alongside the integrated menu.
