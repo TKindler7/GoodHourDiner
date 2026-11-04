@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-04 — Clear phone navigation and controls
+
+- Replaced the phone-only history icon with a visible “Orders” button that opens Order history.
+- Enlarged phone preview tabs, cart quantity and Remove controls, and dialog tool buttons to at least 44px high; gave the 3D preview enough room for the taller controls.
+- All 57 automated checks and the production build pass; source checks confirm the Orders action and phone control sizes.
+
 ## 2026-11-04 — First-visit clarity
 
 - Added the hero promise “Build your dream diner meal. Spend nothing.” and moved the fictional/$0 explanation before the first actions, with readable text on phones.

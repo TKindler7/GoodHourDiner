@@ -29,3 +29,31 @@ dialog{max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius
 
 /* Rewards stay beside order details, using the same quiet surfaces and type. */
 .rewards-card{margin:20px 0;padding:20px;border:1px solid var(--line);border-radius:20px;background:var(--panel);text-align:left}.cart-dialog .rewards-card{margin:0 24px 24px}.rewards-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:15px;font-weight:600}.rewards-heading strong{font-size:25px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.rewards-heading small{font-size:13px;font-weight:500;letter-spacing:0}.rewards-card meter{display:block;width:100%;height:12px;margin:12px 0;accent-color:var(--blue)}.rewards-card meter::-webkit-meter-bar{background:var(--line);border:0}.rewards-card meter::-webkit-meter-optimum-value{background:var(--blue)}.rewards-card p{font-size:14px;line-height:1.4;margin:10px 0}.rewards-card>small{display:block;font-size:12px;line-height:1.5;color:var(--muted)}.reward-choice{display:flex;align-items:center;gap:10px;min-height:44px;width:100%;padding:12px;margin-top:12px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--blue);font:inherit;font-size:14px}.reward-choice .icon{flex:none}.reward-choice[aria-pressed=true]{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}.reward-choice:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.rewards-card .reward-applied{font-size:13px;font-weight:600}.receipt-points{display:grid;gap:7px;text-align:center;padding:18px;margin:20px 0;border:1px solid var(--line);border-radius:16px}.receipt-points span,.reward-checkout-note{font-size:13px;color:var(--muted);line-height:1.5}.reward-checkout-note{margin:14px 0 0}.rewards-card .text-button{font-size:14px}@media(max-width:520px){.rewards-heading{flex-wrap:wrap;gap:4px 16px}.cart-dialog .rewards-card{margin-inline:18px}}
+
+
+/* Compact ordering controls keep their names and comfortable touch targets. */
+@media (max-width: 760px) {
+  .nav-actions .mobile-history {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 60px;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .nav-actions .mobile-history:hover { background: var(--panel); }
+  .preview-tabs button { min-height: 44px; font-size: 13px; }
+  .dialog-bar .icon-button { width: 44px; height: 44px; }
+  .quantity-controls button { min-width: 44px; height: 44px; }
+  .remove-button { min-height: 44px; padding-inline: 8px; font-size: 14px; }
+  .builder-visual { height: 430px; }
+}

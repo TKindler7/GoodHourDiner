@@ -57,9 +57,12 @@ Selected French-toast cream and berries belong on each slice. A whole pancake st
 
 Good Hour Points reuse the existing surface, text, action-blue, system type, and focus treatments. The compact balance and labeled meter live in Your visits and the cart; receipts state earned/spent points. Ten points per completed fictional order and 100 points toward one dessert base price are explicit, with extras itemized. The display has no perpetual animation and never hides the money-not-spent reflection. Status appears in context, following local HIG feedback.md Best practices and motion.md Providing feedback.
 
-
 ## November 4 first-visit clarity
 
 The hero pairs “Good food. Great feeling.” with “Build your dream diner meal. Spend nothing.” The fictional/$0 explanation sits before the primary action instead of below the hero photograph and stays at 13px on compact screens. An empty order leads with its menu invitation; rewards follow inside the same scrollable drawer content. Replay assembly uses 14px text and a 44px-high touch target. Saved orders are labeled Order history throughout navigation and receipts.
 
 These changes follow local HIG `writing.md` › Best practices (“Be clear”), `layout.md` › Visual hierarchy (order content by importance), and `buttons.md` › Best practices (44×44 touch regions). Browser visual validation remains pending as documented in PLAYTEST.md.
+
+## November 4 phone control follow-up
+
+The compact navigation shows a visible Orders button that opens Order history. Preview tabs, cart quantity and Remove controls, and dialog tools have at least 44px-high touch targets. The phone 3D preview is slightly taller so the controls and model fit together. These choices follow local HIG `buttons.md` › Best practices for clear purpose and touch regions and `layout.md` › Adaptability for narrow layouts.

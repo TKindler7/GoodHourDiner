@@ -100,10 +100,14 @@ Before submission, include the deployed URL, final commit, dated participant obs
 
 - Final local verification: **57 tests passed**, production build passed, and Git whitespace checks passed. Ordinary saves now use the same shared checkout lock and re-read durable history; tests confirm stale tabs cannot restore spent points and denied reads cannot erase history.
 
-
 ## November 4 — Approved first-visit review fixes
 
 - This was an assistant review of deployed source and planning files, not a human participant session or an interactive browser test. The user selected all five identified improvements.
 - Made the hero promise specific, moved the fictional/$0 note ahead of the photo, prioritized the empty-cart menu action above rewards, enlarged Replay assembly, and renamed Your visits to Order history.
 - Checked the changed source and responsive rules; all 57 automated checks and the production build pass. The empty-cart body can scroll at short heights, and phone/desktop replay rules specify a 44px target and 14px text.
 - A fresh production-browser attempt returned “Local browser use is disabled in Work settings.” Desktop and 390px visual inspection, real clicks, and participant reactions remain unverified.
+
+## November 4 — Phone navigation and target follow-up
+
+- Replaced the phone's icon-only order-history control with a visible Orders button and enlarged the preview tabs, cart quantity/Remove controls, and dialog tools to at least 44px high.
+- Verified source order, action wiring, media rules, the automated suite, and the production build. Browser interaction and visual inspection remain pending because the Browser tool still reports “Local browser use is disabled in Work settings.”
