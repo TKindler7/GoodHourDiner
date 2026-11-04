@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-04 — First-visit clarity
+
+- Added the hero promise “Build your dream diner meal. Spend nothing.” and moved the fictional/$0 explanation before the first actions, with readable text on phones.
+- Put the empty-cart invitation and Explore the menu button before rewards; made that content scroll within the drawer on short screens.
+- Enlarged Replay assembly to a 44px-high target with 14px text across screen sizes.
+- Renamed navigation, receipt links, and the saved-orders screen from Your visits to Order history.
+- All 57 automated checks and the production build pass. Browser testing remains unavailable because the browser tool reports local browser use disabled; no desktop or 390px visual pass is claimed.
+
 ## 2026-11-03 — Feedback, topping accuracy, and rewards
 
 - Distributed selected French-toast cream and berries over every slice, corrected slice support heights, and added the Maple Bacon Burger’s missing maple glaze.

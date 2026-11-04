@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#FAF7F0">
-  <meta name="description" content="Your diner favorites. Entirely your way. Browse 23 original dishes, build a meal, and place a fictional order at Good Hour Diner. Nothing is charged or delivered.">
+  <meta name="description" content="Build your dream diner meal. Spend nothing. Browse 23 original dishes, customize your favorites, and place a fictional order at Good Hour Diner. Nothing is charged or delivered.">
   <title>Good Hour Diner — Your kind of good.</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
@@ -31,7 +31,7 @@
   <header class="site-header">
     <nav class="nav" aria-label="Main navigation">
       <a class="brand" href="#top" aria-label="Good Hour Diner, back to top"><svg class="icon"><use href="#i-clock"/></svg><span>Good Hour<span class="brand-diner"> Diner</span></span></a>
-      <div class="nav-links"><a href="#menu">Menu</a><button type="button" data-action="combo">Build a meal</button><button type="button" data-action="history">Your visits</button></div>
+      <div class="nav-links"><a href="#menu">Menu</a><button type="button" data-action="combo">Build a meal</button><button type="button" data-action="history">Order history</button></div>
       <div class="nav-actions">
         <button class="icon-button sound-toggle" data-action="sound" type="button" aria-label="Turn sound on" aria-pressed="false"><svg class="icon"><use href="#i-muted"/></svg></button>
         <button class="icon-button mobile-history" data-action="history" type="button" aria-label="View order history"><svg class="icon"><use href="#i-history"/></svg></button>
@@ -43,11 +43,11 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <h1 id="hero-title">Good food.<br><span>Great feeling.</span></h1>
-        <p class="hero-description">Your diner favorites. Entirely your way.</p>
+        <p class="hero-description">Build your dream diner meal. Spend nothing.</p>
+        <p class="hero-note"><span class="tiny-dot" aria-hidden="true"></span><span>A fictional diner. Zero dollars charged. Always.</span></p>
         <div class="hero-actions"><a class="button primary" href="#menu">Explore the menu</a><button class="text-button" data-action="combo" type="button">Build a meal <span aria-hidden="true">›</span></button></div>
       </div>
       <div class="hero-photo"><img src="./assets/food/hero.webp" alt="The Midnight Stack cheeseburger on a ceramic diner plate" width="1672" height="941" fetchpriority="high"></div>
-      <p class="hero-note"><span class="tiny-dot"></span>A fictional diner. Zero dollars charged. Always.</p>
     </section>
     <div class="welcome-strip shell" id="welcome-strip" hidden></div>
     <div class="storage-warning shell" id="storage-warning" role="status" hidden>Your changes are available in this tab, but this browser could not save them for your next visit.</div>
@@ -71,7 +71,7 @@
     </section>
     <section class="savings-section shell" id="the-idea" aria-labelledby="savings-title">
       <div data-reveal><p class="eyebrow">The best part is what you keep.</p><h2 id="savings-title">All the anticipation.<br>None of the bill.</h2><p>Build it. Order it. Enjoy the reveal.<br>Then leave with every real dollar still yours.</p></div>
-      <div class="savings-card" data-reveal><svg class="icon"><use href="#i-spark"/></svg><p>Your fictional orders add up to</p><strong id="savings-total">$0</strong><span>money not spent</span><button class="text-button" data-action="history" type="button">See your visits <span aria-hidden="true">›</span></button><small>A reflection on pretend orders, not a claim of real savings.</small></div>
+      <div class="savings-card" data-reveal><svg class="icon"><use href="#i-spark"/></svg><p>Your fictional orders add up to</p><strong id="savings-total">$0</strong><span>money not spent</span><button class="text-button" data-action="history" type="button">View order history <span aria-hidden="true">›</span></button><small>A reflection on pretend orders, not a claim of real savings.</small></div>
     </section>
   </main>
   <footer class="footer shell"><a class="brand" href="#top"><svg class="icon"><use href="#i-clock"/></svg>Good Hour Diner</a><p>A fictional diner experience. No payment, personal details, preparation, or delivery.<br>Original AI-generated food imagery. Your orders stay in this browser.</p></footer>
